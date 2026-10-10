@@ -1011,6 +1011,11 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
 }
 
 pub fn check_software_update() {
+    // Dalnovid: the upstream check posts this device's fingerprint, OS and arch to
+    // api.rustdesk.com. Disabled until Dalnovid has its own update endpoint.
+    if true {
+        return;
+    }
     if is_custom_client() {
         return;
     }
@@ -1152,7 +1157,17 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://admin.rustdesk.com".to_owned()
+    // Dalnovid: no third-party fallback. Derive the API server from the build-time
+    // default ID server if there is one, otherwise there is no API server.
+    let d = config::DEFAULT_RENDEZVOUS_SERVER;
+    if !d.is_empty() {
+        let s = crate::increase_port(d, -2);
+        if s == d {
+            return format!("http://{}:{}", s, config::RENDEZVOUS_PORT - 2);
+        }
+        return format!("http://{}", s);
+    }
+    "".to_owned()
 }
 
 #[inline]
@@ -2120,7 +2135,7 @@ pub fn check_process(arg: &str, mut same_uid: bool) -> bool {
         if same_uid && p.user_id() != my_uid {
             continue;
         }
-        // on mac, p.cmd() get "/Applications/RustDesk.app/Contents/MacOS/RustDesk", "XPC_SERVICE_NAME=com.carriez.RustDesk_server"
+        // on mac, p.cmd() get "/Applications/RustDesk.app/Contents/MacOS/RustDesk", "XPC_SERVICE_NAME=com.dalnovid.RustDesk_server"
         let parg = if p.cmd().len() <= 1 { "" } else { &p.cmd()[1] };
         if arg.is_empty() {
             if !parg.starts_with("--") {
